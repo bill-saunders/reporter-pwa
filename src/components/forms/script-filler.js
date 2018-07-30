@@ -123,7 +123,7 @@ class ScriptFiller extends Component {
   advancePrompt(element, index, answer, path) {
     var instance = this.state.currentForm;
     instance[index].value = answer;
-    this.setState({loading: true, input: '', currentForm: instance});
+    this.setState({loading: true, input: '', currentForm: instance, scroll: true});
     setTimeout(function() {
       var elementsTotal = this.state.elementsTotal;
       if (element.attributes.context && (answer in element.attributes.context)) {
@@ -227,8 +227,8 @@ class ScriptFiller extends Component {
               </div>
               <div className="col-md-12 col-xs-12 no-padding">
                 <div className="col-md-12 col-xs-12 no-padding system-toggle">
-                  <button className={`col-md-12 col-xs-12 no-padding system-toggle-button ${this.state.currentForm.length - 1 == index ? '' : 'disabled'}`} disabled={(this.state.currentForm.length - 1 == index) ? false : true} onClick={() => {this.advancePrompt(element, index, element.attributes.metadata["value-true"], element.attributes.paths["value-true"])}}>{element.attributes.metadata["value-true"]}</button>
-                  <button className={`col-md-12 col-xs-12 no-padding system-toggle-button ${this.state.currentForm.length - 1 == index ? '' : 'disabled'}`} disabled={(this.state.currentForm.length - 1 == index) ? false : true} onClick={() => {this.advancePrompt(element, index, element.attributes.metadata["value-false"], element.attributes.paths["value-false"])}}>{element.attributes.metadata["value-false"]}</button>
+                  <button className={`col-md-12 col-xs-12 no-padding system-toggle-button ${element.value ? 'disabled' : ''}`} disabled={(element.value) ? true : false} onClick={() => {this.advancePrompt(element, index, element.attributes.metadata["value-true"], element.attributes.paths["value-true"])}}>{element.attributes.metadata["value-true"]}</button>
+                  <button className={`col-md-12 col-xs-12 no-padding system-toggle-button ${element.value ? 'disabled' : ''}`} disabled={(element.value) ? true : false} onClick={() => {this.advancePrompt(element, index, element.attributes.metadata["value-false"], element.attributes.paths["value-false"])}}>{element.attributes.metadata["value-false"]}</button>
                 </div>
               </div>
               {element.value &&
@@ -269,25 +269,28 @@ class ScriptFiller extends Component {
     })
   }
 
+  moveCursorToEnd(id) {
+    let el = document.getElementById(id);
+    setTimeout(function(){ el.selectionStart = el.selectionEnd = 10000; }, 0);
+  }
+
   render() {
     return (
       <div>
         <div className="conversation-container" id="conversation-container">
           {this.displayConversation()}
-          {this.state.loading &&
-            <div className="col-md-12 col-xs-12 no-padding system-response">
-              <div className="system-response-box from-them">
-                <div style={{fontSize: '20px'}}><span className="ellipsis-anim"><span>.</span><span>.</span><span>.</span></span></div>
-              </div>
+          <div className={`col-md-12 col-xs-12 no-padding system-response ${this.state.loading ? '' : 'hidden'}`} id="last-element">
+            <div className="system-response-box from-them">
+              <div style={{fontSize: '20px'}}><span className="ellipsis-anim"><span>.</span><span>.</span><span>.</span></span></div>
             </div>
-          }
+          </div>
         </div>
         {this.state.inputToggle &&
           <div className="message-footer">
             <div className="no-padding" style={{height: '35px', width: '98vw'}}>
               <div className="button-inside">
                 <form onSubmit={(e) => {e.preventDefault(); this.advancePrompt(this.state.currentElement, this.state.currentForm.map(function(e) {return e.id}).indexOf(this.state.currentElement.id), this.state.input, this.state.currentElement.attributes.paths.input)}}>
-                  <input className="col-md-12 col-xs-12 user-text-field" placeholder="Response..." name="input" value={this.state.input} onChange={(e) => {this.onChange(e)}} />
+                  <input className="col-md-12 col-xs-12 user-text-field" id="response-field" placeholder="Response..." name="input" value={this.state.input} onChange={(e) => {this.onChange(e)}} onFocus={() => {this.moveCursorToEnd("response-field")}} />
                   {this.state.input &&
                     <button className="user-text-field-button"><i className="fa fa-2x fa-arrow-circle-up" aria-hidden="true"></i></button>
                   }

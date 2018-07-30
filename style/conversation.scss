@@ -168,6 +168,8 @@
   text-align: center;
   line-height: 3.3em;
   border-top: 1px solid #EAEBED;
+  background: #fff;
+  z-index: 10;
 }
 
 .user-text-field {
@@ -182,7 +184,7 @@
   margin-left: 5px;
   margin-right: 5px;
   padding-right: 0px;
-  width: 90vw;
+  width: 85vw;
 }
 
 .button-inside{
@@ -191,7 +193,7 @@
 
 .user-text-field-button {
   position:absolute;
-  right: -9px;
+  right: -3px;
   border:none;
   border-radius:100%;
   outline:none;
@@ -225,6 +227,11 @@
 
 .disabled {
   opacity: 0.5;
+}
+
+.ellipsis-anim {
+  margin-left: 5px;
+  margin-right: 3px;
 }
 
 .ellipsis-anim span {
@@ -337,4 +344,8 @@
   border-bottom-right-radius: 10px;
   -webkit-transform: translate(-30px, -2px);
   transform: translate(-30px, -2px);
+}
+
+.hidden {
+  display: none;
 }
