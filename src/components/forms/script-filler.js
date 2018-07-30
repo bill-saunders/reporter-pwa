@@ -15,7 +15,8 @@ class ScriptFiller extends Component {
       input: '',
       currentElement: {},
       elementsTotal: [],
-      scroll: false
+      scroll: false,
+      loading: false
     }
 
     this.createInitialInstance = this.createInitialInstance.bind(this);
@@ -32,18 +33,8 @@ class ScriptFiller extends Component {
 
   componentDidUpdate(prevProps, prevState) {
     if (!prevState.scroll && this.state.scroll) {
-      var isSmoothScrollSupported = 'scrollBehavior' in document.documentElement.style;
       let elmnt = document.getElementById("last-element");
-      let page = document.getElementById("conversation-container")
-      if (isSmoothScrollSupported) {
-        elmnt.lastChild.scrollIntoView({block: 'end', behavior: 'smooth'});
-      }
-      else {
-        // $("#conversation-container").animate({ scrollTop: elmnt.lastChild.offsetTop }, "slow");
-
-        this.animatedScroll(elmnt.lastChild, 500);
-
-      }
+      this.animatedScroll(elmnt.lastChild, 1000);
       this.setState({scroll: false})
     }
   }
@@ -130,34 +121,53 @@ class ScriptFiller extends Component {
   }
 
   advancePrompt(element, index, answer, path) {
-    var elementsTotal = this.state.elementsTotal;
-    if (element.attributes.context && (answer in element.attributes.context)) {
-      elementsTotal.push(element);
-    }
     var instance = this.state.currentForm;
     instance[index].value = answer;
-    var next_element = _.find(Form.data.elements, function(e) {return e.id == path});
-    var inputToggle = this.state.inputToggle;
-    var currentElement = this.state.currentElement;
-    if (next_element) {
-      if (!_.isEmpty(next_element.attributes.paths)) {
-        if (next_element.attributes.category == 'text') {
-          inputToggle = true;
-          currentElement = next_element;
+    this.setState({loading: true, input: '', currentForm: instance});
+    setTimeout(function() {
+      var elementsTotal = this.state.elementsTotal;
+      if (element.attributes.context && (answer in element.attributes.context)) {
+        elementsTotal.push(element);
+      }
+      var next_element = _.find(Form.data.elements, function(e) {return e.id == path});
+      var inputToggle = this.state.inputToggle;
+      var currentElement = this.state.currentElement;
+      if (next_element) {
+        if (!_.isEmpty(next_element.attributes.paths)) {
+          if (next_element.attributes.category == 'text') {
+            inputToggle = true;
+            currentElement = next_element;
+          }
+          else {
+            inputToggle = false;
+            currentElement = {};
+          }
+          instance.push(next_element);
         }
         else {
-          inputToggle = false;
-          currentElement = {};
+          if (next_element.attributes.category == 'text') {
+            inputToggle = true;
+          }
+          else {
+            inputToggle = false;
+          }
+          var total_response = {
+            attributes: {
+              category: "text",
+              label: `You added ${this.state.elementsTotal.length} ${this.state.elementsTotal.length != 1 ? `"Not Safe" Observations`: `"Not Safe" Observation`}`,
+              order: instance.length + 1,
+              metadata: {},
+              paths: {}
+            }
+          }
+          instance.push(total_response);
+          instance.push(next_element);
+          var elementPos = Form.data.elements.map(function(x) {return x.id; }).indexOf(next_element.id);
+          instance = this.createNewSection(instance, elementPos);
+          elementsTotal = [];
         }
-        instance.push(next_element);
       }
       else {
-        if (next_element.attributes.category == 'text') {
-          inputToggle = true;
-        }
-        else {
-          inputToggle = false;
-        }
         var total_response = {
           attributes: {
             category: "text",
@@ -168,35 +178,19 @@ class ScriptFiller extends Component {
           }
         }
         instance.push(total_response);
-        instance.push(next_element);
-        var elementPos = Form.data.elements.map(function(x) {return x.id; }).indexOf(next_element.id);
-        instance = this.createNewSection(instance, elementPos);
-        elementsTotal = [];
-      }
-    }
-    else {
-      var total_response = {
-        attributes: {
-          category: "text",
-          label: `You added ${this.state.elementsTotal.length} ${this.state.elementsTotal.length != 1 ? `"Not Safe" Observations`: `"Not Safe" Observation`}`,
-          order: instance.length + 1,
-          metadata: {},
-          paths: {}
+        var end_response = {
+          attributes: {
+            category: "text",
+            label: "This form is complete. Have a nice day.",
+            order: instance.length + 1,
+            metadata: {},
+            paths: {}
+          }
         }
+        instance.push(end_response);
       }
-      instance.push(total_response);
-      var end_response = {
-        attributes: {
-          category: "text",
-          label: "This form is complete. Have a nice day.",
-          order: instance.length + 1,
-          metadata: {},
-          paths: {}
-        }
-      }
-      instance.push(end_response);
-    }
-    this.setState({currentForm: instance, inputToggle: inputToggle, currentElement: currentElement, input: '', elementsTotal: elementsTotal, scroll: true});
+      this.setState({currentForm: instance, inputToggle: inputToggle, currentElement: currentElement, input: '', elementsTotal: elementsTotal, scroll: true, loading: false});
+    }.bind(this), 1500)
   }
 
   onChange(e) {
@@ -226,8 +220,8 @@ class ScriptFiller extends Component {
         case 'toggle':
           return (
             <div key={`element-${element.id}-${index}`} id={`${this.state.currentForm.length - 1 == index ? 'last-element' : ''}`}>
-              <div className="col-md-12 col-xs-12 no-padding">
-                <div className="system-response-box response">
+              <div className="col-md-12 col-xs-12 no-padding" style={{marginBottom: '2px'}}>
+                <div className="system-response-box response from-them">
                   <p className="small-text">{element.attributes.label}</p>
                 </div>
               </div>
@@ -237,9 +231,9 @@ class ScriptFiller extends Component {
                   <button className={`col-md-12 col-xs-12 no-padding system-toggle-button ${this.state.currentForm.length - 1 == index ? '' : 'disabled'}`} disabled={(this.state.currentForm.length - 1 == index) ? false : true} onClick={() => {this.advancePrompt(element, index, element.attributes.metadata["value-false"], element.attributes.paths["value-false"])}}>{element.attributes.metadata["value-false"]}</button>
                 </div>
               </div>
-              {element.value && this.state.currentForm.length - 1 != index &&
+              {element.value &&
                 <div className="col-md-12 col-xs-12 no-padding user-response">
-                  <div className="user-response-box" style={{textAlign: `${element.value.length > 10 ? 'left': 'center'}`}}>
+                  <div className="user-response-box my-message" style={{textAlign: `${element.value.length > 10 ? 'left': 'center'}`}}>
                     <p className="small-text">{element.value}</p>
                   </div>
                 </div>
@@ -249,12 +243,14 @@ class ScriptFiller extends Component {
         case 'text':
           return (
             <div key={`element-${element.id}-${index}`} id={`${this.state.currentForm.length - 1 == index ? 'last-element' : ''}`}>
-              <div className="system-response-box">
-                <p className="small-text">{element.attributes.label}</p>
+              <div className="col-md-12 col-xs-12 no-padding system-response">
+                <div className="system-response-box from-them">
+                  <p className="small-text">{element.attributes.label}</p>
+                </div>
               </div>
-              {element.value && this.state.currentForm.length - 1 != index &&
+              {element.value &&
                 <div className="col-md-12 col-xs-12 no-padding user-response">
-                  <div className="user-response-box" style={{textAlign: `${element.value.length > 10 ? 'left': 'center'}`}}>
+                  <div className="user-response-box my-message" style={{textAlign: `${element.value.length > 10 ? 'left': 'center'}`}}>
                     <p className="small-text">{element.value}</p>
                   </div>
                 </div>
@@ -278,6 +274,13 @@ class ScriptFiller extends Component {
       <div>
         <div className="conversation-container" id="conversation-container">
           {this.displayConversation()}
+          {this.state.loading &&
+            <div className="col-md-12 col-xs-12 no-padding system-response">
+              <div className="system-response-box from-them">
+                <div style={{fontSize: '20px'}}><span className="ellipsis-anim"><span>.</span><span>.</span><span>.</span></span></div>
+              </div>
+            </div>
+          }
         </div>
         {this.state.inputToggle &&
           <div className="message-footer">
